@@ -1,0 +1,671 @@
+---
+title: "Análisis Descriptivo - Línea Acceso"
+subtitle: '**CoV-IMPACT- C **"Coronavirus Impact Monitor. </br> Policy, Access, Control and Transectorial Consequences" </br> Proyecto ANID-COVID N° 960' 
+author: "por Valentina Andrade"
+lang: es-CL
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: yes
+    depth: 2
+    theme: cerulean
+    number_sections: yes
+---
+
+
+```{r, echo=FALSE}
+htmltools::img(src = knitr::image_uri("input/icon-192.png"), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px;')
+```
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F, results = 'asis')
+summarytools::st_options(bootstrap.css     = FALSE,       # Already part of the theme so no need for it
+           plain.ascii       = FALSE,       # One of the essential settings
+           style             = "rmarkdown", # Idem.
+           dfSummary.silent  = TRUE,        # Suppresses messages about temporary files
+           footnote          = NA,          # Keeping the results minimalistic
+           subtitle.emphasis = FALSE)       # For the vignette theme, this gives better results.
+#summarytools::st_css()
+
+library(ggplot2); theme_set(theme_classic() + theme(text = element_text(size = 12)))
+library(knitr);  options(knitr.kable.NA = '')
+```
+
+```{r packages, echo = F}
+# 1. Cargar paquetes
+pacman::p_load(sjmisc, tidyverse, ggplot2, ggsci, googlesheets4, magrittr, kableExtra, ggpubr, chilemapas)
+```
+
+```{r load, echo = F}
+#2. Cargar base de datos 
+mv <- readRDS("output/movid.rds")
+codebook <- read_sheet("https://docs.google.com/spreadsheets/d/1NtZVYC_yTEswUgR2bQg3iq3AhJfukCadNh3g-WF3Bh8/edit?usp=sharing", range = "B175:C214")
+mv <- mv %>% group_by(pob_id) %>% filter(semana == max(semana)) %>% ungroup(pob_id)
+```
+
+# Descripción de la base de datos
+
+El siguiente análisis está desarrollado en base a la encuesta panel "Monitoreo Nacional de Síntomas y Prácticas COVID-19" (MOVID-19). A la fecha, **MOVID-19**  ha recopilado un total de `r format(nrow(mv))` y un total de `r format (ncol(mv))` variables. 
+
+El presente informe tiene por objetivo mostrar estadísticos descriptivos de variables del **Módulo de Acceso** , especialmente de aquellas preguntas sobre acceso a prestaciones de salud no relacionadas al COVID-19. 
+
+Para su conocimiento, [las variables indicadas son](https://docs.google.com/spreadsheets/d/1NtZVYC_yTEswUgR2bQg3iq3AhJfukCadNh3g-WF3Bh8/edit#gid=0): 
+
+**Tabla 1.** Libro de códigos para análisis de Acceso No COVID-19
+**A. Filtros y prestaciones de salud**
+```{r, echo=FALSE}
+codebook <- as.data.frame(codebook)
+codebook1 <- codebook[1:10,]
+codebook1 %>%  knitr::kable(digits = 2, row.names = F,  booktabs = T)  %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+```
+
+**B. Razones de no consulta**
+```{r, echo=FALSE}
+codebook <- as.data.frame(codebook)
+codebook1 <- codebook[12:24,]
+codebook1 %>%  knitr::kable(digits = 2, row.names = F,  booktabs = T)  %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+```
+
+
+**C. Acceso salud para Crónicos**
+```{r, echo=FALSE}
+codebook <- as.data.frame(codebook)
+codebook1 <- codebook[26:39,]
+codebook1 %>%  knitr::kable(digits = 2, row.names = F,  booktabs = T)  %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+```
+
+
+# Personas que reportan un problema de salud  no relacionado a COVID-19
+
+En la encuesta MOVID-19 `r format (table(mv$nc1_problema_reg[mv$nc1_problema_reg == 1]))` participantes indicaron tener nuevos problemas de salud o accidente **no relacionado con COVID-19**. El siguiente bloque de preguntas se les aplica a todos los participantes de MOVID-19. 
+
+
+
+**Tabla 2**. Estadísticos descriptivos sociodemográficos de participantes MOVID-19
+```{r, echo = F, results='asis'}
+
+m <- mv %>% filter(is.na(nc1_problema_reg))%>% select(sexo, edad_cat, educ_3cat, prev, region)
+
+print(summarytools::dfSummary(m,plain.ascii = FALSE, headings = F, method = "render"))
+```
+Fuente: Elaboración de MOVID-19
+*Nota*: Solo fueron consideradas (i) la última observación de las personas con datos para (ii) en el módulo de acceso a prestaciones de salud no relacionadas a COVID-19
+
+
+## Acceso a salud
+
+```{r, echo = F}
+mv$nc1_problema <- car::recode(mv$nc1_problema_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(nc1_problema_reg)) %>%
+  group_by(nc1_problema) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = nc1_problema, y = prop, fill = nc1_problema)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 0. Proporción de personas que tuvo un nuevo problema de salud (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+
+```
+
+
+
+En el *Gráfico 1* se reporta la proporción de personas que tuvieron un nuevo problema de salud y si estas realizaron o no consulta médica. 
+
+```{r, echo = F}
+mv$nc2_consulta <- car::recode(mv$nc2_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(nc1_problema_reg == 1, !is.na(nc2_consulta_reg)) %>%
+  group_by(nc2_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = nc2_consulta, y = prop, fill = nc2_consulta)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 1. Proporción de personas que hacen consulta médica de control (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+
+```
+
+
+### Composición sociodemográfica
+
+En la *Tabla 3* se describe las características sociodemográficas de quienes reportan un problema de salud o accidente **no relacionado con COVID-19**, indicando la proporción de quiénes de ellos realizaron o no consultas médicas. 
+
+**Tabla 3.** Estadísticos descriptivos para quienes indican reportar un problema de salud 
+```{r, results='asis', echo=F}
+
+mv$nc2_consulta <- car::recode(mv$nc2_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(nc1_problema_reg == 1, !is.na(nc2_consulta_reg)) %>% select(nc2_consulta,sexo, edad_3cat, educ_4cat, region) %>% pivot_longer(!nc2_consulta, names_to = "variable", values_to = "value") %>% 
+  group_by(variable,value, nc2_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit() %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Variable","Subgrupo", "Consultó", "n", "%")) %>% collapse_rows(columns = 1:2) %>% 
+            add_header_above(c("Sociodemográfico" = 2, "Acceso" = 3)) %>%  pack_rows("Edad", 1, 6) %>%
+            pack_rows("Nivel Educacional", 7, 14) %>%
+            pack_rows("Región", 15, 46) %>% 
+            pack_rows("Sexo", 47, 52) %>%
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+En relación a quiénes acceden a consultas médicas y quiénes no, el *Gráfico 2* muestra la distribución según previsión de salud. Podemos notar que quiénes tienen *FONASA* y *Ninguna* son quienes menos acceden a prestaciones de salud. 
+
+```{r,  echo= F}
+mv$nc2_consulta <- car::recode(mv$nc2_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(nc1_problema_reg == 1, !is.na(nc2_consulta_reg), !is.na(prev)) %>%
+  group_by(prev,nc2_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = prev, y = prop, fill = nc2_consulta)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 2. Proporción de personas que hacen consulta médica de control\n según previsión (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "bottom")
+
+```
+
+## Acceso según división servicio salud
+
+```{r, echo =F, results= 'asis'}
+divisiones <- merge(chilemapas::divisiones_salud, chilemapas::codigos_territoriales)
+mv$nc2_consulta <- car::recode(mv$nc2_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+mv  %>% filter (nc1_problema_reg == 1, !is.na(nc2_consulta_reg)) %>% select(region, comuna, nc2_consulta) %>%  
+  merge(divisiones, by.x ="comuna", by.y ="nombre_comuna") %>% 
+  group_by(nombre_servicio_salud, nc2_consulta) %>% 
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit() %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Servicio de Salud","Consultó", "n", "%")) %>% collapse_rows(columns = 1)  %>%
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T) 
+```
+
+
+```{r, echo = F, results='asis'}
+paleta <- c("#DCA761", "#CFB567", "#BFBC71", "#9EA887", "#819897")
+m <- mv  %>% filter (region == "Metropolitana de Santiago", nc1_problema_reg == 1, !is.na(nc2_consulta_reg)) %>% select(region, comuna, nc2_consulta_reg) %>%  
+  merge(divisiones, by.x ="comuna", by.y ="nombre_comuna") %>% 
+  group_by(codigo_servicio_salud, nc2_consulta_reg) %>% 
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit()
+
+mapa <- mapa_comunas %>% 
+  filter(codigo_region == 13) %>% 
+  generar_servicios_salud() %>% merge(m) %>% merge(chilemapas::divisiones_salud, by = "codigo_servicio_salud") %>% select(-codigo_comuna) %>% unique()
+
+mapa %>% filter (nc2_consulta_reg == 0) %>% 
+  mutate(nombre = str_replace(nombre_servicio_salud, "Metropolitano","")) %>% 
+ggplot() + 
+  geom_sf(aes(fill = prop, geometry = geometry)) +
+  geom_sf_label(aes(label = nombre, geometry = geometry), size = 4) +
+  scale_fill_gradientn(colours = rev(paleta), name = "%") +
+  labs(title = "Mapa 1. Proporción de personas que no consultan\nsegún servicio de salud en RM") +
+  theme_minimal(base_size = 13)
+
+```
+
+
+
+## Tipo de prestaciones que se posponen
+
+```{r,  echo= F}
+mv %>% select(starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value") %>% 
+  group_by(variable, value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% na.omit() %>% filter(value == 1) %>% 
+  ggplot(aes(x = reorder(variable, -prop), y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 3. Proporción de las personas que reportan posponer (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+
+```
+
+
+```{r,  echo= F}
+mv %>%  select(prev, starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value", -prev) %>% 
+  group_by(prev, value, variable) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% na.omit() %>% filter(value == 1, prev !="Otra") %>% 
+  ggplot(aes(x = prev, y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 4. Proporción de personas que reportan posponer según previsión (%)[$^1$]", caption = "Nota: Las alternativas indicadas son de selección múltiple, por lo que los porcentajes no suman 100%") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "bottom")
+
+```
+
+[^1]: FFAA no están pues indican que ninguna de las anteriores (y son pocos casos). Se filtra otra por pocos casos
+
+```{r, results='asis', echo=F, message=FALSE, warning= FALSE}
+sexo <- mv  %>% select(sexo, edad_3cat, educ_3cat, starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value", -sexo, -edad_3cat, -educ_3cat) %>% filter(variable !="nc3_posp_null_reg") %>% 
+  group_by(sexo, value, variable) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% 
+  filter(value == 1, sexo != "Otro") %>%  select(-value) %>% 
+  ggplot(aes(x = sexo, y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 4) + labs(x = "", y = "%", title = "Sexo") +
+  theme_classic() + scale_fill_jama(name = "")
+
+edad <- mv %>%  select(sexo, edad_3cat, educ_3cat, starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value", -sexo, -edad_3cat, -educ_3cat) %>% filter(variable !="nc3_posp_null_reg") %>% 
+  group_by(edad_3cat, value, variable) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% 
+  filter(value == 1) %>%  select(-value) %>% 
+  ggplot(aes(x = edad_3cat, y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 4) + 
+  labs(x = "", y = "%", title = "Tramo edad") +
+  theme_classic() + scale_fill_jama(name = "")
+
+educ <- mv %>% select(sexo, edad_3cat, educ_3cat, starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value", -sexo, -edad_3cat, -educ_3cat) %>% filter(variable !="nc3_posp_null_reg") %>% 
+  group_by(educ_3cat, value, variable) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% 
+  filter(value == 1) %>%  select(-value) %>% 
+  ggplot(aes(x = educ_3cat, y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 4) + 
+  labs(x = "", y = "%", title = "Nivel educacional") +
+  theme_classic() + scale_fill_jama(name = "")
+
+reg <- mv %>%  select(region, starts_with("nc3_posp")& ends_with("_reg")) %>% gather("variable","value", -region) %>% filter(variable !="nc3_posp_null_reg",!is.na(region)) %>% mutate(reg = ifelse(region == "Metropolitana de Santiago", "RM", "No RM")) %>% 
+  group_by(reg, value, variable) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100, variable = case_when(variable == "nc3_posp_cirugia_reg" ~ "Cirugía", variable == "nc3_posp_consulta_reg" ~ "Consulta" , variable == "nc3_posp_examen_reg" ~ "Exámen", variable == "nc3_posp_insumos_reg" ~ "Insumos\nMedicamentos", variable == "nc3_posp_vacuna_reg" ~ "Vacuna", variable == "nc3_posp_otra_reg" ~ "Otra")) %>% 
+  filter(value == 1) %>%  select(-value) %>% 
+  ggplot(aes(x = reg, y = prop, fill = variable)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 4) + 
+  labs(x = "", y = "%", title = "Región") +
+  theme_classic() + scale_fill_jama(name = "")
+
+m <-ggpubr::ggarrange(sexo,edad,educ,reg, ncol = 2, nrow = 2, common.legend = TRUE, legend="bottom")
+annotate_figure(m, top = text_grob("Gráfico 5. Proporción de personas que reportan posponer según subgrupo (%)"), bottom = text_grob("Nota: Las alternativas indicadas son de selección múltiple, por lo que los porcentajes no suman 100%"))
+```
+
+
+## Razones para posponer prestaciones
+
+**Tabla 4.** Proporción de personas que reporta cada razón para posponer
+```{r, results='asis', echo=F}
+
+mv %>% select(starts_with("nc4_")&ends_with("_reg")) %>% gather("variable", "value") %>%  filter(!is.na(value)) %>% 
+  group_by(variable,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(value !=0) %>% select(-value)%>% mutate(variable = case_when(variable == "nc4_pq_cancela_reg" ~ "Cancela",variable == "nc4_pq_costo_reg" ~ "Costo", variable == "nc4_pq_cuidados_reg" ~ "Cuidados", variable == "nc4_pq_empeorar_reg" ~ "Empeorar",
+variable == "nc4_pq_leves_reg" ~ "Síntomas leves",
+variable == "nc4_pq_nimporta_reg" ~ "No importa", variable == "nc4_pq_nosabia_reg" ~ "No sabía", variable == "nc4_pq_otra_reg" ~ "Otra", variable == "nc4_pq_sistlleno_reg" ~ "Sistema lleno", variable == "nc4_pq_temor_reg" ~ "Miedo al contagio", variable == "nc4_pq_tiempo_reg" ~ "Tiempo", variable == "nc4_pq_transporte_reg" ~ "Transporte"))  %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Razón", "n", "%"))  %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+
+# Personas que reportan un problema de salud crónico
+
+```{r load2, echo = F}
+#2. Cargar base de datos 
+mv <- readRDS("output/movid.rds")
+mv <- mv %>% group_by(pob_id) %>% filter(semana == max(semana)) %>% ungroup(pob_id)
+```
+
+
+En la encuesta MOVID-19 `r format (table(mv$crn1_consulta_reg[mv$crn1_consulta_reg == 1]))` participantes indicaron tener nuevos problemas de salud o accidente **no relacionado con COVID-19**. El siguiente bloque de preguntas se les aplica a todos los participantes de MOVID-19. 
+
+
+
+**Tabla 5**. Estadísticos descriptivos sociodemográficos para quienes reportaron tener un problema de salud crónico
+```{r, echo = F, results='asis'}
+
+m <- mv %>% filter(is.na(crn1_consulta_reg))%>% select(sexo, edad_cat, educ_3cat, prev, region)
+
+print(summarytools::dfSummary(m,plain.ascii = FALSE, headings = F, method = "render"))
+```
+Fuente: Elaboración de MOVID-19
+
+## Acceso a salud
+
+En el *Gráfico 5* se reporta la proporción de personas que tienen problemas de salud crónicos y si estas realizaron o no consulta médica. 
+
+```{r, echo = F}
+mv$nc1_consulta <- car::recode(mv$crn1_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn1_consulta_reg)) %>%
+  group_by(nc1_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = nc1_consulta, y = prop, fill = nc1_consulta)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 5. Proporción de personas que hacen consulta médica de control (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+
+```
+
+En el *Gráfico 6* se reporta la proporción de personas que tienen problemas de salud crónicos según si estas han tenido que posponer consultas
+
+```{r, echo = F}
+mv$crn2_posponer <- car::recode(mv$crn2_posponer_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn2_posponer)) %>%
+  group_by(crn2_posponer) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = crn2_posponer, y = prop, fill = crn2_posponer)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 6. Proporción de personas que han tenido que posponer atención médica (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+```
+
+
+
+### Composición sociodemográfica
+
+En la *Tabla 6* se describe las características sociodemográficas de quienes reportan un **problema de salud crónico**, indicando la proporción de quiénes de ellos realizaron o no consultas médicas. 
+
+**Tabla 6.** Estadísticos descriptivos para quienes tienen problemas de salud crónicos y si consultan consultas
+```{r, results='asis', echo=F}
+mv$crn1_consulta <- car::recode(mv$crn1_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn1_consulta)) %>% select(crn1_consulta,sexo, edad_3cat, educ_4cat, region) %>% pivot_longer(!crn1_consulta, names_to = "variable", values_to = "value") %>% 
+  group_by(variable,value, crn1_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit() %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Variable","Subgrupo", "Consultó", "n", "%")) %>% collapse_rows(columns = 1:2) %>% 
+            add_header_above(c("Sociodemográfico" = 2, "Acceso" = 3)) %>%
+            pack_rows("Edad", 1, 6) %>%
+            pack_rows("Nivel Educacional", 7, 14) %>%
+            pack_rows("Región", 15, 46) %>% 
+            pack_rows("Sexo", 47, 52) %>%
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+El *Gráfico 7 y 8* muestra la distribución de si consultan y posponen según previsión de salud. Podemos notar que quiénes tienen *FONASA* y *Ninguna* son quienes menos acceden a prestaciones de salud. 
+
+```{r,  echo= F}
+mv$crn1_consulta <- car::recode(mv$crn1_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn1_consulta), !is.na(prev)) %>%
+  group_by(prev,crn1_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = prev, y = prop, fill = crn1_consulta)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 7. Proporción de personas que hacen consulta médica de control\n según previsión (%)", caption = "Nota: Solo corresponden a enfermos crónicos") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "bottom")
+
+mv$crn2_posponer <- car::recode(mv$crn2_posponer_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn2_posponer), !is.na(prev)) %>%
+  group_by(prev,crn2_posponer) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = prev, y = prop, fill = crn2_posponer)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 8. Proporción de personas que posponen control\n según previsión (%)", caption = "Nota: Solo corresponden a enfermos crónicos") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "bottom")
+```
+
+
+## Acceso según división servicio salud
+
+```{r, echo =F, results= 'asis'}
+divisiones <- merge(chilemapas::divisiones_salud, chilemapas::codigos_territoriales)
+mv$crn1_consulta <- car::recode(mv$crn1_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+mv  %>% filter(!is.na(crn1_consulta)) %>% select(region, comuna, crn1_consulta) %>%  
+  merge(divisiones, by.x ="comuna", by.y ="nombre_comuna") %>% 
+  group_by(nombre_servicio_salud, crn1_consulta) %>% 
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit() %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Servicio de Salud","Consultó", "n", "%")) %>% collapse_rows(columns = 1)  %>%
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T) 
+```
+
+
+```{r, echo = F, results='asis'}
+paleta <- c("#DCA761", "#CFB567", "#BFBC71", "#9EA887", "#819897")
+m <- mv  %>% filter (region == "Metropolitana de Santiago", !is.na(crn1_consulta_reg)) %>% select(region, comuna, crn1_consulta_reg) %>%  
+  merge(divisiones, by.x ="comuna", by.y ="nombre_comuna") %>% 
+  group_by(codigo_servicio_salud, crn1_consulta_reg) %>% 
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% na.omit()
+
+mapa <- mapa_comunas %>% 
+  filter(codigo_region == 13) %>% 
+  generar_servicios_salud() %>% merge(m) %>% merge(chilemapas::divisiones_salud, by = "codigo_servicio_salud") %>% select(-codigo_comuna) %>% unique()
+
+mapa %>% filter (crn1_consulta_reg == 0) %>%  
+  mutate(nombre = str_replace(nombre_servicio_salud, "Metropolitano","")) %>%
+ggplot() + 
+  geom_sf(aes(fill = prop, geometry = geometry)) +
+  geom_sf_label(aes(label = nombre, geometry = geometry), size = 4) +
+  scale_fill_gradientn(colours = rev(paleta), name = "%") +
+  labs(title = "Mapa 2. Proporción de personas que no consultan\nsegún servicio de salud en RM") +
+  theme_minimal(base_size = 13)
+
+```
+
+
+## Razones para posponer prestaciones
+
+**Tabla 7.** Proporción de personas que reporta cada razón para posponer
+```{r, results='asis', echo=F}
+
+mv %>% select(starts_with("crn3_")&ends_with("_reg")) %>% gather("variable", "value") %>%  filter(!is.na(value)) %>% 
+  group_by(variable,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(value !=0) %>% select(-value)%>% mutate(variable = case_when(variable == "crn3_pq_cancela_reg" ~ "Servicio de salud cancela",variable == "crn3_pq_costo_reg" ~ "Costo económico", variable == "crn3_pq_cuidados_reg" ~ "Cuidados",
+variable == "crn3_pq_nimporta_reg" ~ "No importa",
+variable == "crn3_pq_nosabia_reg" ~ "No sabía",
+variable == "crn3_pq_otra_reg" ~ "Otra",
+variable == "crn3_pq_sistlleno_reg" ~ "Sistema lleno",
+variable == "crn3_pq_temor_reg" ~ "Miedo al contagio",
+variable == "crn3_pq_tiempo_reg" ~ "Tiempo de espera",
+variable == "crn3_pq_transporte_reg" ~ "Transporte"))  %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Razón", "n", "%"))  %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+
+## Análisis por tipo de enfermedad crónica
+
+**Tabla 8.** Proporción de personas que reporta consultar según tipo de enfermedad
+```{r, results='asis', echo=F}
+mv %>% select(crn1_consulta_reg, starts_with("x1_prx_")) %>% gather("variable", "value", -x1_prx_cardio, - x1_prx_respiratoria, -x1_prx_hipertension, -x1_prx_diabetes, - x1_prx_inmuno, -x1_prx_oncologico, -x1_prx_renal, -x1_prx_fuma, -x1_prx_sobrepeso, -x1_prx_null)  %>% pivot_longer(-c(variable, value), names_to = "enfermedad", values_to = "value2") %>% filter(!is.na(value), value2!=0) %>% 
+  group_by(enfermedad,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(enfermedad != "x1_prx_null") %>% mutate(value = case_when(value == 0 ~ "No",value == 1 ~ "Si")) %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Enfermedad","Consulta", "n", "%"))  %>% collapse_rows(columns = 1) %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+```
+
+
+**Tabla 9.** Proporción de personas que posponen según enfermedad crónica
+```{r, results='asis', echo=F}
+mv %>% select(crn2_posponer_reg, starts_with("x1_prx_")) %>% gather("variable", "value", -x1_prx_cardio, - x1_prx_respiratoria, -x1_prx_hipertension, -x1_prx_diabetes, - x1_prx_inmuno, -x1_prx_oncologico, -x1_prx_renal, -x1_prx_fuma, -x1_prx_sobrepeso, -x1_prx_null)  %>% pivot_longer(-c(variable, value), names_to = "enfermedad", values_to = "value2") %>% filter(!is.na(value), value2!=0) %>% 
+  group_by(enfermedad,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(enfermedad != "x1_prx_null") %>% mutate(value = case_when(value == 0 ~ "No",value == 1 ~ "Si")) %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Enfermedad","Pospone", "n", "%"))  %>% collapse_rows(columns = 1) %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+```
+
+
+**Tabla 10.** Proporción de personas que reporta cada razón para posponer según tipo enfermedad
+```{r, results='asis', echo=F}
+mv %>% select(starts_with("crn3_")&ends_with("_reg"), starts_with("x1_prx_")) %>% gather("variable", "value", -x1_prx_cardio, - x1_prx_respiratoria, -x1_prx_hipertension, -x1_prx_diabetes, - x1_prx_inmuno, -x1_prx_oncologico, -x1_prx_renal, -x1_prx_fuma, -x1_prx_sobrepeso, -x1_prx_null)  %>% pivot_longer(-c(variable, value), names_to = "enfermedad", values_to = "value2") %>% filter(!is.na(value), value2!=0) %>% 
+  group_by(enfermedad,variable, value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(value !=0, enfermedad != "x1_prx_null") %>% select(-value)%>% mutate(variable = case_when(variable == "crn3_pq_cancela_reg" ~ "Servicio de salud cancela",variable == "crn3_pq_costo_reg" ~ "Costo económico", variable == "crn3_pq_cuidados_reg" ~ "Cuidados",
+variable == "crn3_pq_nimporta_reg" ~ "No importa",
+variable == "crn3_pq_nosabia_reg" ~ "No sabía",
+variable == "crn3_pq_otra_reg" ~ "Otra",
+variable == "crn3_pq_sistlleno_reg" ~ "Sistema lleno",
+variable == "crn3_pq_temor_reg" ~ "Miedo al contagio",
+variable == "crn3_pq_tiempo_reg" ~ "Tiempo de espera",
+variable == "crn3_pq_transporte_reg" ~ "Transporte"))  %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Enfermedad","Razón", "n", "%"))  %>% collapse_rows(columns = 1) %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+
+
+```{r, echo = F}
+mv$nc1_consulta <- car::recode(mv$crn1_consulta_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn1_consulta_reg)) %>%
+  group_by(nc1_consulta) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = nc1_consulta, y = prop, fill = nc1_consulta)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 5. Proporción de personas que hacen consulta médica de control (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+
+```
+
+En el *Gráfico 6* se reporta la proporción de personas que tienen problemas de salud crónicos según si estas han tenido que posponer consultas
+
+```{r, echo = F}
+mv$crn2_posponer <- car::recode(mv$crn2_posponer_reg, c("1='Sí'; 0='No'"), as.factor = T)
+
+mv %>% filter(!is.na(crn2_posponer)) %>%
+  group_by(crn2_posponer) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% 
+  ggplot(aes(x = crn2_posponer, y = prop, fill = crn2_posponer)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 6. Proporción de personas que han tenido que posponer atención médica (%)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+```
+
+
+# Razones para posponer de ambos grupos
+
+
+**Tabla 12.** Proporción de personas que reporta cada razón para posponer
+
+```{r, results='asis', echo=F}
+nc <- mv %>% select(starts_with("nc4_")&ends_with("_reg")) %>% gather("variable", "value") %>%  filter(!is.na(value)) %>% 
+  group_by(variable,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(value !=0) %>% select(-value)%>% mutate(variable = case_when(variable == "nc4_pq_cancela_reg" ~ "Servicio de salud cancela",variable == "nc4_pq_costo_reg" ~ "Costo económico", variable == "nc4_pq_cuidados_reg" ~ "Deber cuidar de otros", variable == "nc4_pq_empeorar_reg" ~ "Espera empeorar",
+variable == "nc4_pq_leves_reg" ~ "Los síntomas son leves",
+variable == "nc4_pq_nimporta_reg" ~ "No considera importante", variable == "nc4_pq_nosabia_reg" ~ "No sabía donde ir", variable == "nc4_pq_otra_reg" ~ "Otra razón", variable == "nc4_pq_sistlleno_reg" ~ "El sistema está lleno", variable == "nc4_pq_temor_reg" ~ "Miedo al contagio", variable == "nc4_pq_tiempo_reg" ~ "Por falta de tiempo", variable == "nc4_pq_transporte_reg" ~ "No tener transporte"))
+
+crn <- mv %>% select(starts_with("crn3_")&ends_with("_reg")) %>% gather("variable", "value") %>%  filter(!is.na(value)) %>% 
+  group_by(variable,value) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(value !=0) %>% select(-value)%>% mutate(variable = case_when(variable == "crn3_pq_cancela_reg" ~ "Servicio de salud cancela",variable == "crn3_pq_costo_reg" ~ "Costo económico", variable == "crn3_pq_cuidados_reg" ~ "Deber cuidar de otros",
+variable == "crn3_pq_nimporta_reg" ~ "No considera importante",
+variable == "crn3_pq_nosabia_reg" ~ "No sabía donde ir",
+variable == "crn3_pq_otra_reg" ~ "Otra razón",
+variable == "crn3_pq_sistlleno_reg" ~ "El sistema está lleno",
+variable == "crn3_pq_temor_reg" ~ "Miedo al contagio",
+variable == "crn3_pq_tiempo_reg" ~ "Por falta de tiempo de espera",
+variable == "crn3_pq_transporte_reg" ~ "No tener transporte")) %>%  mutate(variable2=variable) %>% rename(prop2=prop, n2=n)
+
+crn %>% merge(nc, all = T) %>% 
+  select(variable, n, prop,n2,prop2) %>% 
+  knitr::kable(digits = 2, row.names = F,  booktabs = T,
+             col.names = c("Razón para posponer consulta", "n", "%", "n", "%"))  %>% 
+            add_header_above(c(" " = 1, "Nuevo problema\nsalud" = 2, "Enfermos crónicos" =2)) %>% 
+            kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = T)  
+
+```
+
+
+
+# Comparación con CASEN 2017
+
+## Tasa de atención médica ante problema de salud en los últimos 3 meses
+
+```{r casen, echo= F}
+casen <- readxl::read_xlsx("input/data/Salud_Casen_2017.xlsx", sheet = "3", range = "C3:F8")
+casen <- casen[5,]
+
+mv %>% filter(nc1_problema_reg == 1) %>% 
+  group_by(nc2_consulta_reg) %>%
+  summarise(n = n()) %>% 
+  mutate ("2020" = round(n/ sum(n),4)*100) %>% filter(nc2_consulta_reg == 1) %>% cbind(casen) %>% select(-nc2_consulta_reg, -n) %>% gather(year, prop) %>% mutate(year = as.factor(year), prop = round(prop, 2))%>% 
+  ggplot(aes(x = year, y = prop, fill = year)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(prop, "%")),
+            position = position_stack(vjust = .5), color="white", size= 5) + 
+  labs(x = "", y = "%", title = "Gráfico 8. Tasa de atención médica ante problema de salud\nen los últimos 3 meses (2011-2020) (%)", caption = "Fuente: CASEN (2011-2017) y MOVID-19 (2020)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "none")
+```
+
+
+```{r casen2, echo= F}
+casen <- readxl::read_xlsx("input/data/Salud_Casen_2017.xlsx", sheet = "3.11")
+
+
+mv %>% filter(nc1_problema_reg == 1, !is.na(prev)) %>% mutate(prev = if_else(prev %in% c("Fuerzas Armadas y de Orden", "Otra"), "FF.AA. y del Orden y Otro sistema", prev)) %>% 
+  group_by(prev, nc2_consulta_reg) %>%
+  summarise(n = n()) %>% 
+  mutate (prop = round(n/ sum(n),4)*100) %>% filter(nc2_consulta_reg == 1) %>% ungroup %>%  select(-nc2_consulta_reg, -n)  %>% mutate(year = 2020) %>% ungroup() %>% rbind(casen) %>% mutate(year = as.character(year), prop = round(prop, 1)) %>%  filter(prev != "Total") %>% 
+  ggplot(aes(x = year, y = round(prop,1), fill = prev)) +
+  geom_bar(stat = "identity", position = "dodge2") +
+  geom_text(aes(label = paste0(round(prop,1), "%")),
+            position = position_dodge(width = 0.9), vjust = 1, color="white", size= 2.5, font = "bold") + 
+  labs(x = "", y = "%", title = "Gráfico 9. Tasa de atención médica ante problema de salud\nen los últimos 3 meses (2011-2020) (%)", caption = "Fuente: CASEN (2011-2017) y MOVID-19 (2020)") +
+  theme_classic() + scale_fill_jama(name = "") +
+  theme(legend.position = "bottom")
+```
